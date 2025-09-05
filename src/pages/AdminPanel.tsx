@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { useData } from '../contexts/DataContext';
-import { Settings, Users, BookOpen, BarChart3, Plus, Edit, Trash2, Download, Upload } from 'lucide-react';
+import { Settings, Users, BookOpen, BarChart3, Plus, Edit, Trash2, Download, Upload, Video, X } from 'lucide-react';
 
 const AdminPanel: React.FC = () => {
   const { modules, leaderboard } = useData();
-  const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'users' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'users' | 'analytics' | 'videos'>('overview');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showVideoUploadModal, setShowVideoUploadModal] = useState(false);
+  const [selectedModule, setSelectedModule] = useState<string>('');
+  const [selectedLesson, setSelectedLesson] = useState<string>('');
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: BarChart3 },
     { key: 'modules', label: 'Modules', icon: BookOpen },
     { key: 'users', label: 'Users', icon: Users },
-    { key: 'analytics', label: 'Analytics', icon: BarChart3 }
+    { key: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { key: 'videos', label: 'Videos', icon: Video }
   ];
 
   const totalLessons = modules.reduce((acc, module) => acc + module.totalLessons, 0);
@@ -24,6 +31,47 @@ const AdminPanel: React.FC = () => {
     { id: '3', name: 'Vikram Singh', email: 'vikram@manufacturingpro.in', role: 'learner', status: 'active', joinDate: '2024-01-20', progress: 30 },
     { id: '4', name: 'Meera Patel', email: 'meera@foodprocessing.in', role: 'learner', status: 'inactive', joinDate: '2024-01-05', progress: 80 }
   ];
+
+  const mockVideos = [
+    { id: '1', title: 'Introduction to Mind Management', module: 'Mind Management Mastery', duration: '45:30', uploadDate: '2024-01-15', size: '1.2 GB', status: 'active' },
+    { id: '2', title: 'Cognitive Biases and Decision Making', module: 'Mind Management Mastery', duration: '52:15', uploadDate: '2024-01-17', size: '1.5 GB', status: 'active' },
+    { id: '3', title: 'Understanding Emotional Intelligence', module: 'Emotional Intelligence', duration: '48:20', uploadDate: '2024-01-20', size: '1.3 GB', status: 'processing' },
+  ];
+
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setVideoFile(file);
+    }
+  };
+
+  const handleVideoSubmit = async () => {
+    if (!videoFile || !selectedModule || !selectedLesson) return;
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    // Simulate upload progress
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          setShowVideoUploadModal(false);
+          setVideoFile(null);
+          setSelectedModule('');
+          setSelectedLesson('');
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 500);
+  };
+
+  const getAvailableLessons = () => {
+    const module = modules.find(m => m.id === selectedModule);
+    return module?.lessons || [];
+  };
 
   const renderOverview = () => (
     <div className="space-y-6">
@@ -305,12 +353,85 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 
+  const renderVideos = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-semibold text-gray-900">Video Management</h3>
+        <button
+          onClick={() => setShowVideoUploadModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Upload Video
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Module</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upload Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {mockVideos.map((video) => (
+              <tr key={video.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                      <Video className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{video.title}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900">{video.module}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{video.duration}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{video.size}</td>
+                <td className="px-6 py-4">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    video.status === 'active' ? 'bg-green-100 text-green-800' : 
+                    video.status === 'processing' ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {video.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900">
+                  {new Date(video.uploadDate).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center space-x-2">
+                    <button className="text-blue-600 hover:text-blue-800 transition-colors">
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button className="text-red-600 hover:text-red-800 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
       case 'modules': return renderModules();
       case 'users': return renderUsers();
       case 'analytics': return renderAnalytics();
+      case 'videos': return renderVideos();
       default: return renderOverview();
     }
   };
@@ -365,6 +486,134 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Video Upload Modal */}
+      {showVideoUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Upload Session Video</h3>
+              <button
+                onClick={() => setShowVideoUploadModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Module Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Module
+                </label>
+                <select
+                  value={selectedModule}
+                  onChange={(e) => {
+                    setSelectedModule(e.target.value);
+                    setSelectedLesson('');
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Choose a module...</option>
+                  {modules.map((module) => (
+                    <option key={module.id} value={module.id}>
+                      {module.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Lesson Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Lesson
+                </label>
+                <select
+                  value={selectedLesson}
+                  onChange={(e) => setSelectedLesson(e.target.value)}
+                  disabled={!selectedModule}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">Choose a lesson...</option>
+                  {getAvailableLessons().map((lesson) => (
+                    <option key={lesson.id} value={lesson.id}>
+                      {lesson.title}
+                    </option>
+                  ))}
+                  <option value="new">Create new lesson</option>
+                </select>
+              </div>
+
+              {/* Video Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Video File
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleVideoUpload}
+                    className="hidden"
+                    id="video-upload"
+                  />
+                  <label htmlFor="video-upload" className="cursor-pointer">
+                    <Video className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-600">
+                      {videoFile ? videoFile.name : 'Click to select video file'}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">MP4, MOV, AVI up to 2GB</p>
+                  </label>
+                </div>
+              </div>
+
+              {/* Upload Progress */}
+              {isUploading && (
+                <div>
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Uploading...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowVideoUploadModal(false)}
+                disabled={isUploading}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVideoSubmit}
+                disabled={!videoFile || !selectedModule || !selectedLesson || isUploading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {isUploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Video
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };
