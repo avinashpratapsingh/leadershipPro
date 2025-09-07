@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { useData } from '../contexts/DataContext';
-import { Settings, Users, BookOpen, BarChart3, Plus, Edit, Trash2, Download, Upload, Video, X } from 'lucide-react';
+import { Settings, Users, BookOpen, BarChart3, Plus, Edit, Trash2, Download, Upload, Video, X, CheckCircle } from 'lucide-react';
 
 const AdminPanel: React.FC = () => {
   const { modules, leaderboard } = useData();
@@ -366,13 +366,17 @@ const AdminPanel: React.FC = () => {
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-gray-900">User Management</h3>
         <div className="flex items-center space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center">
+          <button
             onClick={handleExportUsers}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center"
+          >
             <Download className="w-4 h-4 mr-2" />
             Export Users
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center">
+          <button
             onClick={() => setShowImportModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
+          >
             <Upload className="w-4 h-4 mr-2" />
             Import Users
           </button>
@@ -889,9 +893,6 @@ const AdminPanel: React.FC = () => {
                 </div>
               )}
             </div>
-    </Layout>
-  );
-};
 
             <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
               <button
@@ -929,4 +930,8 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
       )}
+    </Layout>
+  );
+};
+
 export default AdminPanel;
