@@ -8,11 +8,16 @@ const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'users' | 'analytics' | 'videos'>('overview');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showVideoUploadModal, setShowVideoUploadModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedModule, setSelectedModule] = useState<string>('');
   const [selectedLesson, setSelectedLesson] = useState<string>('');
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState<{success: number, errors: string[]} | null>(null);
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: BarChart3 },
@@ -66,6 +71,142 @@ const AdminPanel: React.FC = () => {
         return prev + 10;
       });
     }, 500);
+  };
+
+  const handleExportUsers = () => {
+    // Create CSV content
+    const csvHeaders = ['Name', 'Email', 'Role', 'Status', 'Progress (%)', 'Join Date', 'Company'];
+    const csvData = mockUsers.map(user => [
+      user.name,
+      user.email,
+      user.role,
+      user.status,
+      user.progress.toString(),
+      user.joinDate,
+      user.company || ''
+    ]);
+    
+    const csvContent = [csvHeaders, ...csvData]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+      setImportResults(null);
+    }
+  };
+
+  const processImportFile = async () => {
+    if (!importFile) return;
+    
+    setIsImporting(true);
+    setImportProgress(0);
+    setImportResults(null);
+    
+    try {
+      const text = await importFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length === 0) {
+        throw new Error('File is empty');
+      }
+      
+      // Parse CSV headers
+      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+      const requiredHeaders = ['name', 'email', 'role'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      
+      if (missingHeaders.length > 0) {
+        throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
+      }
+      
+      const errors: string[] = [];
+      let successCount = 0;
+      
+      // Process each row
+      for (let i = 1; i < lines.length; i++) {
+        setImportProgress((i / (lines.length - 1)) * 100);
+        
+        const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
+        const user: any = {};
+        
+        headers.forEach((header, index) => {
+          user[header] = values[index] || '';
+        });
+        
+        // Validate required fields
+        if (!user.name || !user.email || !user.role) {
+          errors.push(`Row ${i + 1}: Missing required fields (name, email, or role)`);
+          continue;
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(user.email)) {
+          errors.push(`Row ${i + 1}: Invalid email format (${user.email})`);
+          continue;
+        }
+        
+        // Validate role
+        if (!['learner', 'coach', 'admin'].includes(user.role.toLowerCase())) {
+          errors.push(`Row ${i + 1}: Invalid role (${user.role}). Must be: learner, coach, or admin`);
+          continue;
+        }
+        
+        successCount++;
+        
+        // Simulate processing delay
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      setImportResults({ success: successCount, errors });
+      
+    } catch (error) {
+      setImportResults({ 
+        success: 0, 
+        errors: [error instanceof Error ? error.message : 'Unknown error occurred'] 
+      });
+    } finally {
+      setIsImporting(false);
+      setImportProgress(100);
+    }
+  };
+
+  const downloadSampleCSV = () => {
+    const sampleData = [
+      ['Name', 'Email', 'Role', 'Status', 'Progress (%)', 'Join Date', 'Company'],
+      ['John Doe', 'john.doe@company.com', 'learner', 'active', '75', '2024-01-15', 'Tech Corp'],
+      ['Jane Smith', 'jane.smith@company.com', 'coach', 'active', '90', '2024-01-10', 'Leadership Inc'],
+      ['Admin User', 'admin@platform.com', 'admin', 'active', '100', '2024-01-01', 'Platform Team']
+    ];
+    
+    const csvContent = sampleData
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'sample_users_import.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getAvailableLessons = () => {
@@ -226,10 +367,12 @@ const AdminPanel: React.FC = () => {
         <h3 className="text-xl font-semibold text-gray-900">User Management</h3>
         <div className="flex items-center space-x-3">
           <button className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center">
+            onClick={handleExportUsers}
             <Download className="w-4 h-4 mr-2" />
             Export Users
           </button>
           <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center">
+            onClick={() => setShowImportModal(true)}
             <Upload className="w-4 h-4 mr-2" />
             Import Users
           </button>
@@ -614,8 +757,176 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Import Users Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Import Users</h3>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResults(null);
+                  setImportProgress(0);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">Import Instructions</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Upload a CSV file with user data</li>
+                  <li>• Required columns: <strong>Name, Email, Role</strong></li>
+                  <li>• Optional columns: Status, Progress (%), Join Date, Company</li>
+                  <li>• Valid roles: learner, coach, admin</li>
+                  <li>• Valid status: active, inactive</li>
+                  <li>• Email addresses must be valid format</li>
+                </ul>
+              </div>
+
+              {/* Sample File Download */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <h4 className="font-medium text-gray-900">Need a template?</h4>
+                  <p className="text-sm text-gray-600">Download a sample CSV file to see the correct format</p>
+                </div>
+                <button
+                  onClick={downloadSampleCSV}
+                  className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Sample CSV
+                </button>
+              </div>
+
+              {/* File Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select CSV File
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleImportFile}
+                    className="hidden"
+                    id="csv-upload"
+                  />
+                  <label htmlFor="csv-upload" className="cursor-pointer">
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-600">
+                      {importFile ? importFile.name : 'Click to select CSV file'}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">CSV files only</p>
+                  </label>
+                </div>
+              </div>
+
+              {/* Import Progress */}
+              {isImporting && (
+                <div>
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Processing users...</span>
+                    <span>{Math.round(importProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${importProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Import Results */}
+              {importResults && (
+                <div className="space-y-4">
+                  <div className={`p-4 rounded-lg ${
+                    importResults.errors.length === 0 ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'
+                  }`}>
+                    <div className="flex items-center mb-2">
+                      {importResults.errors.length === 0 ? (
+                        <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                      ) : (
+                        <Upload className="w-5 h-5 text-yellow-600 mr-2" />
+                      )}
+                      <h4 className={`font-semibold ${
+                        importResults.errors.length === 0 ? 'text-green-900' : 'text-yellow-900'
+                      }`}>
+                        Import Results
+                      </h4>
+                    </div>
+                    <p className={`text-sm ${
+                      importResults.errors.length === 0 ? 'text-green-800' : 'text-yellow-800'
+                    }`}>
+                      Successfully processed: <strong>{importResults.success}</strong> users
+                      {importResults.errors.length > 0 && (
+                        <span> • Errors: <strong>{importResults.errors.length}</strong></span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Error Details */}
+                  {importResults.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h5 className="font-medium text-red-900 mb-2">Errors Found:</h5>
+                      <div className="max-h-32 overflow-y-auto">
+                        <ul className="text-sm text-red-800 space-y-1">
+                          {importResults.errors.map((error, index) => (
+                            <li key={index}>• {error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
     </Layout>
   );
 };
 
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResults(null);
+                  setImportProgress(0);
+                }}
+                disabled={isImporting}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {importResults ? 'Close' : 'Cancel'}
+              </button>
+              {!importResults && (
+                <button
+                  onClick={processImportFile}
+                  disabled={!importFile || isImporting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {isImporting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Import Users
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 export default AdminPanel;
