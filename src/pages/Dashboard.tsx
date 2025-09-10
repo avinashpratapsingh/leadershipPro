@@ -4,7 +4,7 @@ import { useData } from '../contexts/DataContext';
 import Layout from '../components/Layout';
 import LearnerDashboard from '../components/LearnerDashboard';
 import CoachDashboard from './CoachDashboard';
-import AdminPanel from './AdminPanel';
+import {AdminPanel} from './AdminPanel';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
