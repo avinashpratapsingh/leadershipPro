@@ -3,12 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import Layout from '../components/Layout';
 import LearnerDashboard from '../components/LearnerDashboard';
-import CoachDashboard from './CoachDashboard';
-import {AdminPanel} from './AdminPanel';
+import { CoachDashboard } from '../components/CoachDashboard';
+import { AdminPanel } from '../components/AdminPanel';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { modules } = useData();
 
   const renderDashboard = () => {
     switch (user?.role) {

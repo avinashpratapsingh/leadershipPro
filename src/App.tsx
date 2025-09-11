@@ -7,8 +7,8 @@ import Dashboard from './pages/Dashboard';
 import ModulePage from './pages/ModulePage';
 import LessonPage from './pages/LessonPage';
 import Leaderboard from './pages/Leaderboard';
-import CoachDashboard from './pages/CoachDashboard';
-import { AdminPanel } from './pages/AdminPanel';
+import { CoachDashboard } from './components/CoachDashboard';
+import { AdminPanel } from './components/AdminPanel';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
